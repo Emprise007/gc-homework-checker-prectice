@@ -3,287 +3,434 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>그랜드체이스 클래식 캐릭터별 숙제표</title>
+    <title>일일 숙제 관리 및 달력</title>
     <style>
-        /* 기본 디자인 및 GC 테마 */
-        body { background-color: #1a1a2e; color: #fff; font-family: 'Malgun Gothic', sans-serif; display: flex; justify-content: center; padding: 20px; margin: 0; }
-        .container { width: 100%; max-width: 600px; background-color: #16213e; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        h1 { text-align: center; color: #e94560; margin-bottom: 5px; }
-        p.sub-title { text-align: center; color: #888; font-size: 0.9em; margin-top: 0; margin-bottom: 20px; }
-        h2 { border-bottom: 2px solid #0f3460; padding-bottom: 5px; margin-top: 30px; font-size: 1.2em; color: #aeb8c9; }
-        
-        /* 캐릭터 버튼 스타일 */
-        #character-selector { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 20px; }
-        .char-btn { 
-            background-color: #0f3460; color: #fff; border: 1px solid #16213e; padding: 8px 12px; border-radius: 6px; cursor: pointer; 
-            font-size: 0.9em; transition: background-color 0.2s, border-color 0.2s;
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* 상단 정렬 */
+            padding-top: 50px;
+            background-color: #f4f4f4;
         }
-        .char-btn:hover { background-color: #1a1a2e; }
-        .char-btn.active { background-color: #e94560; border-color: #fff; font-weight: bold; }
 
-        /* 숙제 목록 스타일 */
-        .task-item { display: flex; align-items: center; background-color: #0f3460; margin-bottom: 10px; padding: 12px; border-radius: 8px; cursor: pointer; transition: 0.2s; }
-        .task-item:hover { background-color: #1a1a2e; }
-        .task-item.done { opacity: 0.5; text-decoration: line-through; }
-        
-        input[type="checkbox"] { transform: scale(1.3); margin-right: 15px; cursor: pointer; }
-        label { cursor: pointer; flex-grow: 1; font-weight: bold; }
-        
-        .reset-info { font-size: 0.8em; color: #e94560; margin-left: 5px; }
-        .footer { margin-top: 30px; text-align: center; font-size: 0.8em; color: #666; }
+        /* ---------------------- 전체 레이아웃 ---------------------- */
+        .container {
+            display: flex;
+            gap: 40px; /* 숙제 섹션과 달력 섹션 사이 간격 */
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        /* ---------------------- 숙제 및 캐릭터 섹션 ---------------------- */
+        .task-section {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            flex: 1; /* 남은 공간을 채우도록 설정 */
+            min-width: 400px;
+        }
+
+        .character-status {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .task-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .task-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .task-item:last-child {
+            border-bottom: none;
+        }
+
+        .task-item.completed {
+            text-decoration: line-through;
+            color: #aaa;
+        }
+
+        .toggle-all {
+            margin-top: 20px;
+            padding: 10px 15px;
+            background-color: #5cb85c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+        }
+
+        /* ---------------------- 달력 섹션 ---------------------- */
+        .calendar-section {
+            width: 400px; /* 달력 너비 고정 */
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .calendar-header button {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+            text-align: center;
+        }
+
+        .calendar-grid .day-name {
+            font-weight: bold;
+            color: #333;
+            padding: 5px 0;
+        }
+
+        .calendar-grid .day {
+            padding: 8px 0;
+            border-radius: 4px;
+            font-size: 14px;
+            position: relative;
+        }
+
+        /* 달력 날짜 상태 스타일 */
+        .day.incomplete { background-color: #fdd; } /* 미완료 (빨간색 계열) */
+        .day.complete { background-color: #dfd; } /* 완료 (초록색 계열) */
+        .day.today { border: 2px solid #5cb85c; font-weight: bold; background-color: #eaf7ea; }
     </style>
 </head>
 <body>
+    <div class="container">
+        <div class="task-section">
+            <h1 class="character-status" id="character-status">캐릭터: </h1>
+            <h2 style="margin-top: 0;">오늘의 숙제</h2>
+            <ul class="task-list" id="task-list">
+                </ul>
+            <button class="toggle-all" onclick="toggleAllTasks()">오늘 숙제 전체 완료/해제</button>
+        </div>
 
-<div class="container">
-    <h1>캐릭터별 GC 숙제표</h1>
-    <p class="sub-title">일일: 매일 15:00 초기화 | 주간: 수요일 15:00 초기화 (KST)</p>
-
-    <h2>캐릭터 선택</h2>
-    <div id="character-selector"></div>
-    
-    <h2 id="current-char-name"></h2>
-
-    <div id="task-lists">
-        <h3 style="color: #aeb8c9;">📅 일일 숙제</h3>
-        <div id="daily-list"></div>
-
-        <h3 style="color: #aeb8c9;">⚔️ 주간 숙제</h3>
-        <div id="weekly-list"></div>
+        <div class="calendar-section">
+            <div class="calendar-header">
+                <button onclick="changeMonth(-1)">&#9664;</button>
+                <h2 id="current-month-year"></h2>
+                <button onclick="changeMonth(1)">&#9654;</button>
+            </div>
+            <div class="calendar-grid" id="calendar-grid">
+                <div class="day-name">일</div>
+                <div class="day-name">월</div>
+                <div class="day-name">화</div>
+                <div class="day-name">수</div>
+                <div class="day-name">목</div>
+                <div class="day-name">금</div>
+                <div class="day-name">토</div>
+                </div>
+        </div>
     </div>
 
-    <div class="footer">
-        데이터는 브라우저에 자동 저장됩니다. (기기 간 연동 X)
-    </div>
-</div>
+    <script>
+        // ---------------------- 데이터 및 설정 ----------------------
+        const DAILY_PROGRESS_KEY = 'dailyProgressData';
+        const LAST_RESET_KEY = 'lastResetDate';
 
-<script>
-    // === 1. 기본 데이터 설정 ===
-
-    // 24개 캐릭터 리스트
-    const CHARACTER_NAMES = [
-        '엘리시스', '리르', '아르메', '라스', '라이언', '로난', '에이미', '진', '지크하트', '마리', 
-        '디오', '제로', '레이', '루퍼스', '베이가스', '린', '아신', '라임', '에델', '데카네', 
-        '아이', '칼리아', '우노', '이리스'
-    ];
-
-    // 던전 목록 (ID와 이름)
-    const DUNGEON_DATA = {
-        daily: [
-            { id: 'berkas', name: '베르카스의 요새' },
-            { id: 'tower', name: '소멸의 탑' },
-            { id: 'judge', name: '심판의 땅' },
-            { id: 'corridor', name: '무한회랑' },
-            { id: 'abyss', name: '심연의 길' },
-            { id: 'void', name: '공허' },
-            { id: 'wanted', name: '현상수배 (GP/큐브)' },
-            { id: 'tero', name: '이세계: 테로카 공성전' },
-            { id: 'temple', name: '이세계: 시간의 사원' },
-            { id: 'kounat', name: '이세계: 코우나트 대폭발' },
-        ],
-        weekly: [
-            { id: 'w_furnace', name: '지옥의 용광로' },
-            { id: 'w_sanctum', name: '파멸의 성소' },
-            { id: 'w_laby', name: '환영의 미궁' }
-        ]
-    };
-
-    let characters = []; // 전체 캐릭터 데이터
-    let currentChrId = null; // 현재 선택된 캐릭터 ID
-
-    // === 2. 데이터 초기화/불러오기 ===
-
-    // 초기화 시 빈 체크리스트 생성
-    const generateInitialTasks = (type) => {
-        const tasks = {};
-        DUNGEON_DATA[type].forEach(d => {
-            tasks[d.id] = false;
-        });
-        return tasks;
-    };
-
-    function initializeData() {
-        const savedData = localStorage.getItem('gc_characters');
-        const lastReset = localStorage.getItem('lastResetTime');
-
-        if (savedData) {
-            characters = JSON.parse(savedData);
-        } else {
-            // 로컬에 데이터가 없으면 24개 캐릭터 생성
-            characters = CHARACTER_NAMES.map((name, index) => ({
-                id: index + 1,
-                name: name,
-                dailyTasks: generateInitialTasks('daily'),
-                weeklyTasks: generateInitialTasks('weekly')
-            }));
-            localStorage.setItem('gc_characters', JSON.stringify(characters));
-        }
-        
-        // 현재 선택된 캐릭터 ID 설정 (없으면 엘리시스)
-        currentChrId = localStorage.getItem('currentChrId') || characters[0].id;
-        
-        // 초기화 로직 실행
-        checkAndApplyReset(characters, lastReset);
-    }
-
-    // === 3. 초기화 로직 (핵심) ===
-    function checkAndApplyReset(currentChars, lastResetTime) {
-        const now = new Date();
-        const kstNow = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Seoul"}));
-        let isDailyReset = false;
-        let isWeeklyReset = false;
-
-        // -- 일일 초기화 기준 (오늘 오후 3시) --
-        let dailyResetPoint = new Date(kstNow);
-        if (kstNow.getHours() < 15) { 
-            dailyResetPoint.setDate(dailyResetPoint.getDate() - 1);
-        }
-        dailyResetPoint.setHours(15, 0, 0, 0);
-
-        // -- 주간 초기화 기준 (이번 주 수요일 오후 3시) --
-        let weeklyResetPoint = new Date(kstNow);
-        const day = weeklyResetPoint.getDay(); // 0:일, 1:월, ... 3:수
-        const diff = (day + 7 - 3) % 7; 
-        weeklyResetPoint.setDate(weeklyResetPoint.getDate() - diff);
-        weeklyResetPoint.setHours(15, 0, 0, 0);
-        if (weeklyResetPoint > kstNow) weeklyResetPoint.setDate(weeklyResetPoint.getDate() - 7);
-
-        // 마지막 접속/초기화 시간 (밀리초)
-        const lastCheckTime = lastResetTime ? parseInt(lastResetTime) : 0;
-        
-        // 일일 초기화 필요 체크
-        if (lastCheckTime < dailyResetPoint.getTime()) {
-            isDailyReset = true;
-        }
-
-        // 주간 초기화 필요 체크
-        if (lastCheckTime < weeklyResetPoint.getTime()) {
-            isWeeklyReset = true;
-        }
-
-        if (isDailyReset || isWeeklyReset) {
-            console.log(`Resetting: Daily=${isDailyReset}, Weekly=${isWeeklyReset}`);
-            
-            // 모든 캐릭터에 초기화 적용
-            characters = currentChars.map(char => {
-                let newChar = {...char};
-                if (isDailyReset) newChar.dailyTasks = generateInitialTasks('daily');
-                if (isWeeklyReset) newChar.weeklyTasks = generateInitialTasks('weekly');
-                return newChar;
-            });
-
-            // 갱신된 데이터를 저장하고 알림
-            localStorage.setItem('gc_characters', JSON.stringify(characters));
-            localStorage.setItem('lastResetTime', now.getTime());
-            
-            //alert("숙제가 초기화되었습니다!"); // 초기화 알림은 너무 자주 뜰 수 있으니 콘솔로 대체
-        }
-    }
-
-    // === 4. 액션 핸들러 ===
-
-    // 캐릭터 전환
-    function selectCharacter(id) {
-        currentChrId = id;
-        localStorage.setItem('currentChrId', id);
-        render(); // 화면 다시 그리기
-    }
-
-    // 체크박스 상태 토글
-    function toggleTask(chrId, type, taskId) {
-        const charIndex = characters.findIndex(c => c.id === chrId);
-        if (charIndex === -1) return;
-
-        const char = characters[charIndex];
-        
-        // 상태 변경
-        const newStatus = !char[`${type}Tasks`][taskId];
-        char[`${type}Tasks`] = {
-            ...char[`${type}Tasks`],
-            [taskId]: newStatus
+        const characters = ['A', 'B', 'C', 'D'];
+        const tasks = {
+            'A': ['A-숙제1', 'A-숙제2'],
+            'B': ['B-숙제1', 'B-숙제2', 'B-숙제3'],
+            'C': ['C-숙제1'],
+            'D': ['D-숙제1', 'D-숙제2']
         };
 
-        // 데이터 저장 및 화면 갱신
-        localStorage.setItem('gc_characters', JSON.stringify(characters));
-        render();
-    }
+        // 전역 변수
+        let dailyProgress = {}; // 모든 날짜의 진척도 데이터 { 'yyyymmdd': { 'taskName': true/false, ... }, ... }
+        let progress = {};      // 오늘 날짜의 진척도 데이터 (dailyProgress[todayKey]와 연결)
+        let lastReset = '';     // 마지막으로 리셋된 날짜 (yyyymmdd)
+        let todayKey;           // 오늘 날짜 (yyyymmdd)
+        let totalTasks = 0;
 
-    // === 5. 화면 렌더링 ===
+        // 달력 관련 변수
+        let currentCalendarDate = new Date(); // 현재 달력에 표시할 년월
 
-    // 캐릭터 버튼 목록 표시
-    function renderCharacterSelector() {
-        const selector = document.getElementById('character-selector');
-        selector.innerHTML = '';
+        // ---------------------- 유틸리티 함수 ----------------------
 
-        characters.forEach(char => {
-            const button = document.createElement('button');
-            button.className = `char-btn ${char.id == currentChrId ? 'active' : ''}`;
-            button.innerText = char.name;
-            button.onclick = () => selectCharacter(char.id);
-            selector.appendChild(button);
-        });
-    }
-
-    // 현재 캐릭터의 숙제 목록 표시
-    function renderTaskList() {
-        const currentCharacter = characters.find(c => c.id == currentChrId);
-        if (!currentCharacter) {
-            document.getElementById('current-char-name').innerText = '캐릭터를 선택해주세요.';
-            document.getElementById('task-lists').style.display = 'none';
-            return;
+        /** 오늘 날짜를 'yyyymmdd' 형식으로 반환 */
+        function getTodayKey() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            return `${year}${month}${day}`;
         }
-        
-        document.getElementById('task-lists').style.display = 'block';
-        document.getElementById('current-char-name').innerText = `[${currentCharacter.name}] 숙제 현황`;
 
-        const renderList = (type, listId) => {
-            const container = document.getElementById(listId);
-            container.innerHTML = '';
+        /**
+         * 진척도 데이터를 로컬 스토리지에 저장합니다.
+         * 이 함수는 무한 루프를 막기 위해 데이터가 실제로 변경되는 시점에만 호출되어야 합니다.
+         * @param {string} dateKey - 저장할 날짜 키 (yyyymmdd)
+         */
+        function saveDailyProgress(dateKey) {
+            // 현재 progress 객체(오늘 날짜 데이터)를 전체 dailyProgress에 반영
+            dailyProgress[dateKey] = progress;
+            // 전체 데이터를 저장
+            localStorage.setItem(DAILY_PROGRESS_KEY, JSON.stringify(dailyProgress));
+            // console.log(`Data saved for ${dateKey}.`);
+        }
+
+        /**
+         * 새로운 날짜가 되었는지 확인하고 리셋을 적용합니다.
+         * @param {boolean} shouldSave - 리셋 시 이전 날짜 데이터를 저장할지 여부 (주기적 체크 시에만 true)
+         * @returns {boolean} 리셋이 발생했는지 여부
+         */
+        function checkAndApplyReset(shouldSave) {
+            if (todayKey === lastReset) {
+                return false; // 오늘 이미 리셋되었거나 작업 중이므로 리셋하지 않음
+            }
+
+            // 날짜가 바뀌었으므로 리셋 수행
+            const lastDayKey = lastReset; // 어제 날짜
+            const resetOccurred = lastReset !== '';
+
+            if (resetOccurred && shouldSave) {
+                // 리셋 직전, 어제 날짜의 최종 진행 상황을 저장
+                saveDailyProgress(lastDayKey);
+            }
+
+            // 오늘 날짜의 빈 progress 객체로 초기화
+            const newProgress = {};
+            characters.forEach(char => {
+                tasks[char].forEach(task => {
+                    newProgress[task] = false;
+                });
+            });
+            progress = newProgress; // progress 객체를 새 객체로 교체
+            dailyProgress[todayKey] = progress; // 전체 데이터에도 오늘 날짜로 반영
+            localStorage.setItem(LAST_RESET_KEY, todayKey);
+            lastReset = todayKey;
             
-            DUNGEON_DATA[type].forEach(item => {
-                const isChecked = currentCharacter[`${type}Tasks`][item.id] || false;
+            // console.log("Daily reset applied.");
+            return true;
+        }
+
+        /**
+         * 로컬 스토리지에서 데이터를 로드하고 변수를 초기화합니다.
+         * 이 함수는 데이터 로드만 하고 저장은 하지 않습니다!
+         */
+        function initializeVariables() {
+            // 1. 오늘 날짜 키 설정
+            todayKey = getTodayKey();
+
+            // 2. 전체 진행 데이터 로드
+            const storedProgress = localStorage.getItem(DAILY_PROGRESS_KEY);
+            if (storedProgress) {
+                dailyProgress = JSON.parse(storedProgress);
+            } else {
+                dailyProgress = {};
+            }
+
+            // 3. 마지막 리셋 날짜 로드
+            const storedLastReset = localStorage.getItem(LAST_RESET_KEY);
+            lastReset = storedLastReset || '';
+
+            // 4. 리셋 체크 및 오늘 데이터 설정
+            // 로드 시점에서는 shouldSave를 false로 설정하여 saveDailyProgress 호출을 막습니다.
+            checkAndApplyReset(false); 
+        }
+
+        // ---------------------- 렌더링 함수 ----------------------
+
+        /** 숙제 목록을 렌더링합니다. */
+        function renderTasks() {
+            const taskList = document.getElementById('task-list');
+            taskList.innerHTML = '';
+            totalTasks = 0;
+            let completedTasks = 0;
+
+            characters.forEach(char => {
+                tasks[char].forEach(task => {
+                    const isCompleted = progress[task] || false;
+                    const listItem = document.createElement('li');
+                    listItem.className = `task-item ${isCompleted ? 'completed' : ''}`;
+                    listItem.setAttribute('data-task', task);
+                    listItem.onclick = () => toggleTask(task);
+
+                    listItem.innerHTML = `
+                        <span>[${char}] ${task}</span>
+                        <span>${isCompleted ? '✅' : '⬜'}</span>
+                    `;
+                    taskList.appendChild(listItem);
+                    totalTasks++;
+                    if (isCompleted) {
+                        completedTasks++;
+                    }
+                });
+            });
+
+            // 캐릭터 상태 업데이트
+            const statusElement = document.getElementById('character-status');
+            const statusText = `캐릭터: ${completedTasks} / ${totalTasks} 완료`;
+            statusElement.innerHTML = statusText;
+
+            // 로컬 스토리지에 오늘 데이터 저장 (이 시점에 저장해야 UI 변경과 동기화됨)
+            saveDailyProgress(todayKey);
+        }
+
+        /** 달력을 렌더링합니다. */
+        function renderCalendar() {
+            const header = document.getElementById('current-month-year');
+            const grid = document.getElementById('calendar-grid');
+            
+            // 현재 달력에 표시할 년/월 설정
+            const year = currentCalendarDate.getFullYear();
+            const month = currentCalendarDate.getMonth(); // 0-11
+            
+            header.textContent = `${year}년 ${month + 1}월`;
+
+            // 해당 월의 첫 번째 날 (1일)
+            const firstDayOfMonth = new Date(year, month, 1);
+            // 해당 월의 마지막 날
+            const lastDayOfMonth = new Date(year, month + 1, 0);
+            
+            // 날짜 칸 초기화 (요일 이름은 유지)
+            // .day-name 이 7개 있으므로 7번째 자식부터 제거
+            while (grid.children.length > 7) {
+                grid.removeChild(grid.lastChild);
+            }
+
+            // 1일이 시작하는 요일의 인덱스 (일요일 0, 월요일 1, ...)
+            const startDayIndex = firstDayOfMonth.getDay();
+
+            // 공백 채우기
+            for (let i = 0; i < startDayIndex; i++) {
+                const emptyDay = document.createElement('div');
+                emptyDay.className = 'day empty';
+                grid.appendChild(emptyDay);
+            }
+
+            // 날짜 채우기
+            for (let d = 1; d <= lastDayOfMonth.getDate(); d++) {
+                const dayDiv = document.createElement('div');
+                const date = new Date(year, month, d);
+                const dateKey = `${year}${String(month + 1).padStart(2, '0')}${String(d).padStart(2, '0')}`;
                 
-                const div = document.createElement('div');
-                // 클릭 시 상태 토글 이벤트 연결
-                div.onclick = () => toggleTask(currentCharacter.id, type, item.id);
-                div.className = `task-item ${isChecked ? 'done' : ''}`;
+                dayDiv.className = 'day';
+                dayDiv.textContent = d;
 
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.checked = isChecked;
-                checkbox.onclick = (e) => {
-                    e.stopPropagation(); // 중복 클릭 방지
-                    toggleTask(currentCharacter.id, type, item.id);
-                };
+                // 오늘 날짜 표시
+                if (dateKey === todayKey) {
+                    dayDiv.classList.add('today');
+                }
 
-                const label = document.createElement('label');
-                label.innerText = item.name;
+                // 과거 날짜의 진척도 표시
+                if (dailyProgress[dateKey]) {
+                    let dayProgress = dailyProgress[dateKey];
+                    let taskCount = 0;
+                    let completedCount = 0;
 
-                div.appendChild(checkbox);
-                div.appendChild(label);
-                container.appendChild(div);
+                    for (const task in dayProgress) {
+                        taskCount++;
+                        if (dayProgress[task]) {
+                            completedCount++;
+                        }
+                    }
+
+                    // 완료 상태 결정: 모든 숙제를 완료했을 때만 'complete'
+                    if (taskCount > 0) {
+                         if (completedCount === taskCount) {
+                            dayDiv.classList.add('complete');
+                        } else if (completedCount < taskCount) {
+                            dayDiv.classList.add('incomplete');
+                        }
+                    }
+                }
+                
+                grid.appendChild(dayDiv);
+            }
+        }
+
+        /** 전체 UI를 렌더링합니다. */
+        function render() {
+            renderTasks();
+            renderCalendar();
+        }
+
+        // ---------------------- 이벤트 핸들러 ----------------------
+
+        /**
+         * 특정 숙제를 완료/미완료 처리하고 UI를 갱신합니다.
+         * @param {string} taskName - 숙제 이름
+         */
+        function toggleTask(taskName) {
+            progress[taskName] = !progress[taskName];
+            render(); // render 내부에서 saveDailyProgress 호출됨
+        }
+
+        /** 모든 숙제를 완료/미완료 처리합니다. */
+        function toggleAllTasks() {
+            const allCompleted = totalTasks > 0 && Object.values(progress).every(status => status === true);
+            
+            // 전체 완료 상태를 반전시킵니다.
+            characters.forEach(char => {
+                tasks[char].forEach(task => {
+                    progress[task] = !allCompleted;
+                });
             });
-        };
 
-        renderList('daily', 'daily-list');
-        renderList('weekly', 'weekly-list');
-    }
-    
-    // 전체 화면 갱신 함수
-    function render() {
-        initializeData();
-        renderCharacterSelector();
-        renderTaskList();
-    }
+            render(); // render 내부에서 saveDailyProgress 호출됨
+        }
 
-    // === 6. 시작 및 주기적 체크 ===
-    
-    render();
-    
-    // 1분마다 초기화 시간이 지났는지 체크하여 자동 리셋
-    setInterval(render, 60000); 
+        /**
+         * 달력의 월을 변경합니다.
+         * @param {number} delta - -1 (이전 달) 또는 1 (다음 달)
+         */
+        function changeMonth(delta) {
+            currentCalendarDate.setMonth(currentCalendarDate.getMonth() + delta);
+            renderCalendar();
+        }
 
-</script>
+        // ---------------------- 초기화 및 주기적 체크 ----------------------
+        
+        /** 주기적으로 날짜 리셋을 체크하고 필요시 UI를 렌더링합니다. */
+        function checkResetAndRender() {
+            todayKey = getTodayKey(); // 현재 시간을 기준으로 오늘 날짜를 업데이트
+            
+            // 날짜가 바뀌었으면 리셋을 적용하고 렌더링합니다.
+            // 리셋 시에만 shouldSave=true로 설정하여 이전 날짜의 최종 데이터를 저장합니다.
+            if (checkAndApplyReset(true)) { 
+                render();
+            }
+            // 리셋이 발생하지 않았더라도 달력의 today 표시를 위해 캘린더만 렌더링 (옵션, 1분에 한 번이므로 큰 부담 없음)
+            renderCalendar(); 
+        }
 
+        // 초기화
+        initializeVariables();
+        render(); // 최초 렌더링
+
+        // 1분마다 리셋을 체크합니다. (무한 루프 방지를 위해 setInterval 사용)
+        setInterval(checkResetAndRender, 60000); 
+    </script>
 </body>
 </html>
