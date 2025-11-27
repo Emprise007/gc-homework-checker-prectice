@@ -22,9 +22,10 @@
             --favorite-bg: #f8f8ff; 
             --favorite-border: #d3d3d3;
             
-            /* Task Colors */
+            /* Task & Calendar Progress Colors */
             --progress-complete: #4CAF50; /* Green */
-            --progress-incomplete: #FF5733; /* Red/Orange */
+            --progress-partial: #FFC300; /* Yellow/Gold for Partial */
+            --progress-incomplete: #FF5733; /* Red/Orange for Incomplete */
         }
 
         /* Dark Mode */
@@ -43,8 +44,9 @@
             --favorite-bg: #111111; 
             --favorite-border: #333333;
 
-            /* Task Colors (Dark) */
+            /* Task & Calendar Progress Colors (Dark) */
             --progress-complete: #66BB6A; 
+            --progress-partial: #FFD700; 
             --progress-incomplete: #FF6347; 
         }
 
@@ -61,7 +63,7 @@
         }
         .container { 
             width: 100%; 
-            max-width: 1000px; /* 달력 제거 후 폭 조정 */
+            max-width: 1100px; 
             background-color: var(--bg-container); 
             padding: 25px; 
             border-radius: 15px; 
@@ -77,7 +79,7 @@
             display: flex;
             gap: 10px;
         }
-        #theme-toggle {
+        #theme-toggle, #calendar-toggle-btn {
             background-color: var(--bg-item);
             color: var(--text-color);
             border: 1px solid var(--border-color);
@@ -87,13 +89,17 @@
             transition: all 0.3s;
             font-size: 0.9em;
         }
-        #theme-toggle:hover {
+        #theme-toggle:hover, #calendar-toggle-btn:hover {
             opacity: 0.8;
         }
 
         h1 { text-align: center; color: var(--title-color); margin-bottom: 5px; font-size: 2.5em; transition: color 0.3s; }
         
-        /* 메인 레이아웃 */
+        /* 메인 숙제 뷰 스타일 */
+        #main-view {
+            /* 숙제 목록 관련 스타일 유지 */
+        }
+        
         #main-content-area {
             display: flex;
             gap: 20px;
@@ -133,52 +139,12 @@
             border-radius: 8px;
             padding: 10px;
         }
-        .char-btn {
-            flex: 1 1 auto;
-            min-width: 80px;
-            padding: 8px 5px;
-            border: 1px solid var(--border-color);
-            background-color: var(--bg-item);
-            color: var(--text-color);
-            border-radius: 5px;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-align: center;
-            font-size: 0.85em;
-            position: relative;
-            overflow: hidden;
-        }
         .char-btn.active {
             border: 2px solid var(--accent-color);
             box-shadow: 0 0 5px rgba(204, 0, 0, 0.5);
             padding: 7px 4px;
         }
-        .progress-bar-container {
-            height: 3px;
-            background-color: var(--progress-bar-bg);
-            margin-top: 3px;
-            border-radius: 1.5px;
-            overflow: hidden;
-        }
-        .progress-bar {
-            height: 100%;
-            background-color: var(--accent-color); 
-            transition: width 0.3s;
-        }
-        
         /* 숙제 항목 */
-        .task-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px;
-            margin-bottom: 8px;
-            background-color: var(--bg-item);
-            border-radius: 6px;
-            border: 1px solid var(--border-color);
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
         .task-item.done {
             background-color: var(--progress-complete);
             color: white;
@@ -201,26 +167,104 @@
             font-weight: bold;
             transition: background-color 0.2s;
         }
-        .bulk-toggle-btn.complete {
-            background-color: var(--progress-complete);
-            color: white;
+        .bulk-toggle-btn.complete { background-color: var(--progress-complete); color: white; }
+        .bulk-toggle-btn.incomplete { background-color: var(--progress-incomplete); color: white; }
+
+        /* === 3. 캘린더 뷰 스타일 === */
+        #calendar-view {
+            width: 100%;
+            padding: 20px;
+            display: none; /* JS에서 토글 */
         }
-        .bulk-toggle-btn.complete:hover {
-            background-color: #3e8e41;
+        
+        #calendar-header {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+            gap: 20px;
         }
-        .bulk-toggle-btn.incomplete {
-            background-color: var(--progress-incomplete);
-            color: white;
+        .nav-btn {
+            background: var(--bg-item);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
         }
-        .bulk-toggle-btn.incomplete:hover {
-            background-color: #c0432c;
+        
+        #calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            overflow: hidden;
+            background-color: var(--border-color);
         }
+        .day-header {
+            background-color: var(--bg-item);
+            text-align: center;
+            padding: 10px 0;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        .day-header:nth-child(1) { color: var(--accent-color); } 
+        .day-header:nth-child(7) { color: #0077ff; } 
+
+        .calendar-day {
+            border: 1px solid var(--border-color);
+            min-height: 100px;
+            padding: 5px;
+            position: relative;
+            background-color: var(--bg-container);
+        }
+        .calendar-day.empty {
+            background-color: var(--bg-main);
+            border-color: transparent;
+        }
+        .day-number {
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        .calendar-day.today {
+            background-color: var(--bg-item);
+            border: 2px solid var(--accent-color);
+        }
+
+        /* 진척도 표시 스타일 */
+        .progress-indicator-container {
+            display: flex;
+            flex-direction: column; 
+            align-items: flex-start;
+            margin-top: 5px;
+        }
+        .daily-progress {
+            display: flex;
+            gap: 3px;
+            flex-wrap: wrap; 
+        }
+
+        /* 일일 진척도 동그라미 */
+        .daily-progress-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: block;
+            border: 1px solid var(--border-color);
+            box-sizing: border-box;
+        }
+        .dot-complete { background-color: var(--progress-complete); border-color: var(--progress-complete); } 
+        .dot-partial { background-color: var(--progress-partial); border-color: var(--progress-partial); } 
+        .dot-incomplete { background-color: var(--progress-incomplete); border-color: var(--progress-incomplete); } 
 
         /* 모바일 반응형 */
         @media (max-width: 950px) {
             #main-content-area { flex-direction: column; }
             #favorite-sidebar { width: 100%; min-width: auto; }
             #task-view-container { flex-direction: column; }
+            .calendar-day { min-height: 50px; padding: 3px; }
+            .day-number { font-size: 0.9em; }
         }
 
     </style>
@@ -229,47 +273,75 @@
 
 <div class="container">
     <div id="top-buttons">
+        <button id="calendar-toggle-btn" onclick="switchView('calendar')">🗓️ 캘린더 보기</button>
         <button id="theme-toggle" onclick="toggleTheme()"></button>
     </div>
     
     <h1>GCC 체크리스트</h1>
     
-    <div id="filter-stats-container">
-        <button id="filter-toggle-btn" onclick="toggleFilter()">🔍 숙제 남은 캐릭터만 보기</button>
-    </div>
-
-    <div id="character-selector" ondragover="handleDragOver(event)" ondrop="handleDrop(event)" ondragleave="handleDragLeave(event)"></div>
-    <span class="char-select-info">캐릭터를 즐겨찾기 사이드바로 드래그하거나, 아래에서 순서를 변경할 수 있습니다.</span>
-    
-    <div id="current-char-group">
-        <h2 id="current-char-name"></h2>
-    </div>
-    
-    <div id="main-content-area">
-        <div id="favorite-sidebar" 
-             ondragover="handleDragOver(event)" 
-             ondrop="handleDropToFavorite(event)" 
-             ondragleave="handleDragLeave(event)">
-            <h3>⭐️ 즐겨찾기</h3>
-            <div id="favorite-list">
-                <span class="favorite-list-placeholder">캐릭터를 여기에 드래그하세요.</span>
-            </div>
+    <div id="main-view">
+        <div id="filter-stats-container">
+            <button id="filter-toggle-btn" onclick="toggleFilter()">🔍 숙제 남은 캐릭터만 보기</button>
         </div>
 
-        <div id="task-view-container">
-            
-            <div class="task-column-wrapper">
-                <h3>📅 일일 숙제</h3>
-                <div id="daily-bulk-toggle" class="bulk-toggle-container"></div> <div id="daily-stats-display"></div> 
-                <div id="daily-list"></div>
+        <div id="character-selector" ondragover="handleDragOver(event)" ondrop="handleDrop(event)" ondragleave="handleDragLeave(event)"></div>
+        <span class="char-select-info">캐릭터를 즐겨찾기 사이드바로 드래그하거나, 아래에서 순서를 변경할 수 있습니다.</span>
+        
+        <div id="current-char-group">
+            <h2 id="current-char-name"></h2>
+        </div>
+        
+        <div id="main-content-area">
+            <div id="favorite-sidebar" 
+                 ondragover="handleDragOver(event)" 
+                 ondrop="handleDropToFavorite(event)" 
+                 ondragleave="handleDragLeave(event)">
+                <h3>⭐️ 즐겨찾기</h3>
+                <div id="favorite-list">
+                    <span class="favorite-list-placeholder">캐릭터를 여기에 드래그하세요.</span>
+                </div>
             </div>
 
-            <div class="task-column-wrapper">
-                <h3>⚔️ 주간 숙제</h3>
-                <div id="weekly-bulk-toggle" class="bulk-toggle-container"></div> <div id="weekly-stats-display"></div>
-                <div id="weekly-list"></div>
+            <div id="task-view-container">
+                
+                <div class="task-column-wrapper">
+                    <h3>📅 일일 숙제</h3>
+                    <div id="daily-bulk-toggle" class="bulk-toggle-container"></div>
+                    <div id="daily-stats-display"></div> 
+                    <div id="daily-list"></div>
+                </div>
+
+                <div class="task-column-wrapper">
+                    <h3>⚔️ 주간 숙제</h3>
+                    <div id="weekly-bulk-toggle" class="bulk-toggle-container"></div>
+                    <div id="weekly-stats-display"></div>
+                    <div id="weekly-list"></div>
+                </div>
             </div>
         </div>
+    </div>
+    
+    <div id="calendar-view" style="display: none;">
+        <h2 style="text-align: center; margin-bottom: 30px;">🗓️ 진척도 달력</h2>
+        
+        <div id="calendar-header">
+            <button class="nav-btn" onclick="changeMonth(-1)">&#x25C0; 이전 달</button>
+            <h2 id="calendar-title"></h2>
+            <button class="nav-btn" onclick="changeMonth(1)">다음 달 &#x25B6;</button>
+        </div>
+        <div id="calendar-grid">
+            <div class="day-header">일</div>
+            <div class="day-header">월</div>
+            <div class="day-header">화</div>
+            <div class="day-header">수</div>
+            <div class="day-header">목</div>
+            <div class="day-header">금</div>
+            <div class="day-header">토</div>
+        </div>
+        <p style="margin-top: 20px; font-size: 0.9em; opacity: 0.8;">
+            * 진척도 원은 **즐겨찾기 캐릭터**와 **공유 숙제** 기준입니다. (🟢 100%, 🟡 부분, 🔴 0%)
+        </p>
+        <button class="nav-btn" style="margin-top: 20px;" onclick="switchView('main')">🏠 메인 화면으로 돌아가기</button>
     </div>
 
     <div class="footer">
@@ -315,13 +387,20 @@
         CURRENT_CHR: 'currentChrId',
         FILTER: 'isFilterActive',
         RESET_TIME: 'lastResetTime',
-        SHARED_TASK_PREFIX: 'shared_' 
+        SHARED_TASK_PREFIX: 'shared_',
+        CALENDAR_PROGRESS: 'gc_calendar_progress', // 캘린더 데이터 키
+        CURRENT_VIEW: 'currentView'
     };
     
     let characters = []; 
     let currentChrId = null; 
     let FAVORITE_NAMES = [];
     let isFilterActive = false; 
+    let currentView = 'main'; // 'main' 또는 'calendar'
+    
+    // 캘린더 데이터 관련 변수
+    let CALENDAR_PROGRESS = {}; 
+    let currentCalendarDate = new Date(); 
     
     // --- 드래그 앤 드롭 변수 ---
     let draggedElement = null; 
@@ -355,7 +434,7 @@
         localStorage.setItem(STORAGE_KEYS.SHARED_TASK_PREFIX + id, JSON.stringify(status));
     };
     
-    // === 3. 데이터 로직 (초기화, 리셋, 통계) ===
+    // === 3. 데이터 로직 (초기화, 리셋, 통계, 저장) ===
 
     const generateInitialTasks = (type) => {
         const tasks = {};
@@ -392,6 +471,42 @@
     }
     
     /**
+     * 현재 즐겨찾기 캐릭터와 공유 숙제의 진척도를 수집하여 달력에 저장할 형태로 반환합니다.
+     */
+    function collectCurrentProgress() {
+        const dailyProgress = {};
+        
+        // 1. 즐겨찾기 캐릭터의 일일 진척도
+        FAVORITE_NAMES.forEach(name => {
+            const char = characters.find(c => c.name === name);
+            if (char) {
+                // 일일 숙제 통계만 사용
+                dailyProgress[name] = char.dailyStats.percentage;
+            }
+        });
+        
+        // 2. 공유 일일 숙제 진척도 (무한회랑)
+        const sharedDaily = DUNGEON_DATA.daily.find(d => d.shared && d.id === 'corridor');
+        const sharedStatus = sharedDaily ? getAccountSharedTaskStatus(sharedDaily.id) : { completed: 0, max: 0 };
+        const sharedDailyPercent = sharedStatus.max > 0 ? Math.floor((sharedStatus.completed / sharedStatus.max) * 100) : 100;
+
+        return {
+            daily: dailyProgress, 
+            dailyShared: sharedDailyPercent 
+        };
+    }
+    
+    /**
+     * 캘린더 데이터 (진척도)를 로컬 스토리지에 저장합니다.
+     */
+    function saveDailyProgress(dateKey) {
+        const progressData = collectCurrentProgress();
+        
+        CALENDAR_PROGRESS[dateKey] = progressData;
+        localStorage.setItem(STORAGE_KEYS.CALENDAR_PROGRESS, JSON.stringify(CALENDAR_PROGRESS));
+    }
+    
+    /**
      * 리셋이 필요한지 확인하고, 필요하다면 적용
      */
     function checkAndApplyReset(currentChars, lastResetTime, shouldSave = true) { 
@@ -410,7 +525,7 @@
             lastResetKST = new Date(lastReset.toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
         }
 
-        // --- 일일 초기화 확인 로직 (이전 코드와 동일하게 유지) ---
+        // --- 일일 초기화 확인 ---
         let lastDailyCheckTime = lastResetKST ? new Date(lastResetKST) : new Date(0); 
         
         let nextDailyReset = new Date(lastDailyCheckTime);
@@ -422,9 +537,17 @@
 
         if (kstNow.getTime() >= nextDailyReset.getTime()) {
             shouldResetDaily = true;
+            
+            const dateToSave = new Date(nextDailyReset);
+            dateToSave.setDate(dateToSave.getDate() - 1);
+            
+            if (shouldSave) {
+                // 리셋 발생 직전에 어제의 최종 진행 상황을 저장
+                saveDailyProgress(formatDate(dateToSave)); 
+            }
         }
         
-        // --- 주간 초기화 확인 로직 (이전 코드와 동일하게 유지) ---
+        // --- 주간 초기화 확인 ---
         let currentCheckTime = new Date(lastDailyCheckTime);
         currentCheckTime.setHours(dailyResetHour, 0, 0, 0);
         
@@ -478,6 +601,7 @@
         FAVORITE_NAMES = savedFavorites ? JSON.parse(savedFavorites).filter(name => CHARACTER_NAMES.includes(name)) : [];
 
         isFilterActive = localStorage.getItem(STORAGE_KEYS.FILTER) === 'true'; 
+        currentView = localStorage.getItem(STORAGE_KEYS.CURRENT_VIEW) || 'main';
 
         const savedData = localStorage.getItem(STORAGE_KEYS.CHARACTERS);
         const lastReset = localStorage.getItem(STORAGE_KEYS.RESET_TIME);
@@ -504,6 +628,9 @@
             
             return updatedChar;
         });
+        
+        const savedCalendar = localStorage.getItem(STORAGE_KEYS.CALENDAR_PROGRESS);
+        CALENDAR_PROGRESS = savedCalendar ? JSON.parse(savedCalendar) : {};
         
         // 2. 리셋 체크 (initializeVariables에서는 shouldSave=false로 호출하여 저장 방지)
         checkAndApplyReset(characters, lastReset, false); 
@@ -547,6 +674,11 @@
             localStorage.setItem(STORAGE_KEYS.CHARACTERS, JSON.stringify(characters));
         }
         
+        // 데이터 변경 시점에 오늘 진척도 저장
+        if (type === 'daily') {
+            saveDailyProgress(formatDate(new Date()));
+        }
+        
         render(); // 숙제 변경 후 전체 렌더링
     }
     
@@ -573,18 +705,22 @@
             if (sharedTask) {
                 setAccountSharedTaskStatus(sharedTask.id, { completed: count * sharedTask.max, max: sharedTask.max });
             }
+            // 일괄 완료 시 오늘 진척도 저장
+            saveDailyProgress(formatDate(new Date()));
         }
 
         localStorage.setItem(STORAGE_KEYS.CHARACTERS, JSON.stringify(characters));
         render(); // 숙제 변경 후 전체 렌더링
     }
     
-    // --- DND/즐겨찾기 함수 (기존 로직 유지) ---
+    // --- DND/즐겨찾기 함수 ---
     function saveCharacterOrder() {
         localStorage.setItem(STORAGE_KEYS.ORDER, JSON.stringify(CHARACTER_NAMES));
     }
     function saveFavorites() {
         localStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(FAVORITE_NAMES));
+        // 즐겨찾기 목록 변경 시 진척도 저장 대상이 바뀌므로 오늘 데이터 갱신
+        saveDailyProgress(formatDate(new Date()));
         render();
     }
     function removeFavorite(charName) {
@@ -669,7 +805,115 @@
         }
     }
     
-    // === 6. 렌더링 함수 (UI 업데이트) ===
+    // === 6. 뷰 전환 및 캘린더 로직 ===
+    
+    /**
+     * 메인 화면과 캘린더 화면을 전환합니다.
+     */
+    function switchView(viewName) {
+        currentView = viewName;
+        localStorage.setItem(STORAGE_KEYS.CURRENT_VIEW, viewName);
+        
+        document.getElementById('main-view').style.display = viewName === 'main' ? 'block' : 'none';
+        document.getElementById('calendar-view').style.display = viewName === 'calendar' ? 'block' : 'none';
+        
+        const calendarBtn = document.getElementById('calendar-toggle-btn');
+        calendarBtn.style.display = viewName === 'main' ? 'inline-block' : 'none';
+        
+        if (viewName === 'calendar') {
+            renderCalendar();
+        }
+    }
+    
+    function changeMonth(delta) {
+        currentCalendarDate.setMonth(currentCalendarDate.getMonth() + delta);
+        renderCalendar();
+    }
+
+    function renderCalendar() {
+        const date = currentCalendarDate;
+        const year = date.getFullYear();
+        const month = date.getMonth(); 
+
+        document.getElementById('calendar-title').innerText = `${year}년 ${month + 1}월`;
+
+        const grid = document.getElementById('calendar-grid');
+        while (grid.children.length > 7) {
+            grid.removeChild(grid.lastChild);
+        }
+
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        const startDayOfWeek = firstDay.getDay(); 
+
+        for (let i = 0; i < startDayOfWeek; i++) {
+            const emptyDay = document.createElement('div');
+            emptyDay.className = 'calendar-day empty';
+            grid.appendChild(emptyDay);
+        }
+
+        const todayKey = formatDate(new Date());
+        for (let day = 1; day <= lastDay.getDate(); day++) {
+            const currentDate = new Date(year, month, day);
+            const dateKey = formatDate(currentDate);
+
+            const dayDiv = document.createElement('div');
+            dayDiv.className = 'calendar-day';
+            if (dateKey === todayKey) {
+                dayDiv.classList.add('today');
+            }
+            
+            const dayNumber = document.createElement('div');
+            dayNumber.className = 'day-number';
+            dayNumber.innerText = day;
+            dayDiv.appendChild(dayNumber);
+            
+            const progressContainer = document.createElement('div');
+            progressContainer.className = 'progress-indicator-container';
+            
+            const progressData = CALENDAR_PROGRESS[dateKey] || 
+                                 (dateKey === todayKey ? collectCurrentProgress() : null);
+
+            if (progressData && FAVORITE_NAMES.length > 0) {
+                const dailyContainer = document.createElement('div');
+                dailyContainer.className = 'daily-progress';
+                
+                // 1. 즐겨찾기 캐릭터 진척도
+                FAVORITE_NAMES.forEach(name => {
+                    const percent = progressData.daily[name] !== undefined ? progressData.daily[name] : 100;
+                    
+                    let dotClass = '';
+                    if (percent === 100) dotClass = 'dot-complete';
+                    else if (percent > 0) dotClass = 'dot-partial';
+                    else dotClass = 'dot-incomplete';
+                    
+                    const dot = document.createElement('span');
+                    dot.className = `daily-progress-dot ${dotClass}`;
+                    dot.title = `${name}: ${percent}%`;
+                    dailyContainer.appendChild(dot);
+                });
+
+                // 2. 공유 숙제 진척도 (무한회랑)
+                const sharedPercent = progressData.dailyShared !== undefined ? progressData.dailyShared : 100;
+                let sharedDotClass = '';
+                if (sharedPercent === 100) sharedDotClass = 'dot-complete';
+                else if (sharedPercent > 0) sharedDotClass = 'dot-partial';
+                else sharedDotClass = 'dot-incomplete';
+                
+                const sharedDot = document.createElement('span');
+                sharedDot.className = `daily-progress-dot ${sharedDotClass}`;
+                sharedDot.title = `무한회랑(공유): ${sharedPercent}%`;
+                dailyContainer.appendChild(sharedDot);
+                
+                progressContainer.appendChild(dailyContainer);
+            }
+
+            dayDiv.appendChild(progressContainer);
+            grid.appendChild(dayDiv);
+        }
+    }
+    
+    // === 7. 렌더링 함수 (UI 업데이트) ===
 
     function selectCharacter(id) { 
         currentChrId = id; 
@@ -677,6 +921,7 @@
         render(); 
     }
 
+    // (renderCharacterSelector, renderFavorites 함수는 이전 코드와 동일하므로 생략)
     function renderCharacterSelector() {
         const selector = document.getElementById('character-selector');
         selector.innerHTML = '';
@@ -685,7 +930,6 @@
             const char = characters.find(c => c.name === name);
             if (!char) return; 
 
-            // 필터링 적용
             if (isFilterActive && char.dailyStats.percentage === 100 && char.weeklyStats.percentage === 100) {
                 return; 
             }
@@ -704,11 +948,7 @@
             const dailyBar = `<div class="progress-bar-container"><div class="progress-bar" style="width: ${char.dailyStats.percentage}%; background-color: ${CHAR_COLORS[name]};"></div></div>`;
             const weeklyBar = `<div class="progress-bar-container"><div class="progress-bar" style="width: ${char.weeklyStats.percentage}%; background-color: ${CHAR_COLORS[name]};"></div></div>`;
 
-            btn.innerHTML = `
-                ${name}
-                ${dailyBar}
-                ${weeklyBar}
-            `;
+            btn.innerHTML = `${name}${dailyBar}${weeklyBar}`;
             selector.appendChild(btn);
         });
     }
@@ -718,7 +958,7 @@
         favoriteList.innerHTML = '';
 
         if (FAVORITE_NAMES.length === 0) {
-            favoriteList.innerHTML = '<span class="favorite-list-placeholder">캐릭터를 여기에 드래그하거나, 즐겨찾기 바깥으로 드래그하여 제거하세요.</span>';
+            favoriteList.innerHTML = '<span class="favorite-list-placeholder">캐릭터를 여기에 드래그하세요.</span>';
             return;
         }
 
@@ -738,35 +978,25 @@
             const dailyBar = `<div class="progress-bar-container"><div class="progress-bar" style="width: ${char.dailyStats.percentage}%; background-color: ${CHAR_COLORS[name]};"></div></div>`;
             const weeklyBar = `<div class="progress-bar-container"><div class="progress-bar" style="width: ${char.weeklyStats.percentage}%; background-color: ${CHAR_COLORS[name]};"></div></div>`;
 
-            item.innerHTML = `
-                <span>${name}</span>
-                ${dailyBar}
-                ${weeklyBar}
-            `;
+            item.innerHTML = `<span>${name}</span>${dailyBar}${weeklyBar}`;
             favoriteList.appendChild(item);
         });
     }
     
-    /**
-     * 일괄 완료/취소 버튼 렌더링
-     */
     function renderBulkButtons(type, stats) {
         const container = document.getElementById(`${type}-bulk-toggle`);
         container.innerHTML = '';
         
-        // 1. 전체 완료 버튼
         const completeBtn = document.createElement('button');
         completeBtn.className = 'bulk-toggle-btn complete';
         completeBtn.innerText = `${type === 'daily' ? '일일' : '주간'} 전체 완료`;
         completeBtn.onclick = () => toggleAllTasks(type, true);
         
-        // 2. 전체 취소 버튼 (숙제 완료율이 100% 미만일 때만 '전체 완료' 버튼 활성화)
         const incompleteBtn = document.createElement('button');
         incompleteBtn.className = 'bulk-toggle-btn incomplete';
         incompleteBtn.innerText = `${type === 'daily' ? '일일' : '주간'} 전체 취소`;
         incompleteBtn.onclick = () => toggleAllTasks(type, false);
 
-        // 이미 100% 완료된 상태라면 '전체 완료' 버튼 비활성화 (선택적으로)
         if (stats.percentage === 100) {
             completeBtn.disabled = true;
             completeBtn.style.opacity = 0.5;
@@ -780,12 +1010,13 @@
     function renderTaskList() {
         const char = characters.find(c => c.id == currentChrId);
         if (!char) {
-            document.getElementById('current-char-name').innerText = "캐릭터를 선택해주세요.";
-            document.getElementById('daily-list').innerHTML = '';
-            document.getElementById('weekly-list').innerHTML = '';
-            document.getElementById('daily-bulk-toggle').innerHTML = '';
-            document.getElementById('weekly-bulk-toggle').innerHTML = '';
-            return;
+            // ... (생략)
+             document.getElementById('current-char-name').innerText = "캐릭터를 선택해주세요.";
+             document.getElementById('daily-list').innerHTML = '';
+             document.getElementById('weekly-list').innerHTML = '';
+             document.getElementById('daily-bulk-toggle').innerHTML = '';
+             document.getElementById('weekly-bulk-toggle').innerHTML = '';
+             return;
         }
         
         document.getElementById('current-char-name').innerText = `[${char.name}] 선택됨`;
@@ -794,7 +1025,6 @@
         const dailyList = document.getElementById('daily-list');
         dailyList.innerHTML = '';
         
-        // 1. 개별 일일 숙제
         DUNGEON_DATA.daily.filter(d => !d.shared).forEach(d => {
             const status = char.dailyTasks[d.id] || { completed: 0, max: d.max };
             const isDone = status.completed === status.max;
@@ -806,7 +1036,6 @@
             `;
         });
         
-        // 2. 공유 일일 숙제
         DUNGEON_DATA.daily.filter(d => d.shared).forEach(d => {
             const status = getAccountSharedTaskStatus(d.id);
             const isDone = status.completed === status.max;
@@ -819,7 +1048,7 @@
         });
 
         document.getElementById('daily-stats-display').innerText = `일일: ${char.dailyStats.completedCount}/${char.dailyStats.totalCount} (${char.dailyStats.percentage}%)`;
-        renderBulkButtons('daily', char.dailyStats); // 일괄 버튼 렌더링
+        renderBulkButtons('daily', char.dailyStats);
 
 
         // --- 주간 숙제 렌더링 ---
@@ -838,19 +1067,26 @@
         });
 
         document.getElementById('weekly-stats-display').innerText = `주간: ${char.weeklyStats.completedCount}/${char.weeklyStats.totalCount} (${char.weeklyStats.percentage}%)`;
-        renderBulkButtons('weekly', char.weeklyStats); // 일괄 버튼 렌더링
+        renderBulkButtons('weekly', char.weeklyStats);
     }
 
     function render() {
         initializeVariables(); 
         setTheme(getTheme()); 
-        renderCharacterSelector(); 
-        renderFavorites();
-        renderTaskList(); 
-        updateFilterButton(); 
+        
+        // 뷰 전환
+        switchView(currentView);
+        
+        // 메인 뷰 요소들만 렌더링
+        if (currentView === 'main') {
+            renderCharacterSelector(); 
+            renderFavorites();
+            renderTaskList(); 
+            updateFilterButton(); 
+        }
     }
 
-    // === 7. 시작 및 주기적 체크 ===
+    // === 8. 시작 및 주기적 체크 ===
     
     /** 주기적으로 리셋을 체크하고, 리셋이 발생하면 전체 UI를 렌더링 */
     function checkResetAndRender() {
@@ -862,14 +1098,18 @@
         
         if (resetOccurred || tempCharacters.length === 0) {
             render();
+        } else if (currentView === 'calendar') {
+            // 캘린더 뷰 상태에서 리셋이 없었더라도 캘린더만 갱신 (선택적)
+            renderCalendar(); 
         }
-        // 리셋이 없으면 아무것도 하지 않음 (무한 루프 방지)
     }
 
     // 전역 스코프에 함수 노출 (HTML onclick 사용을 위함)
     window.toggleTheme = toggleTheme;
+    window.switchView = switchView;
+    window.changeMonth = changeMonth;
     window.toggleTask = toggleTask;
-    window.toggleAllTasks = toggleAllTasks; // 일괄 완료 함수 노출
+    window.toggleAllTasks = toggleAllTasks;
     window.toggleFilter = toggleFilter;
     window.handleDragStart = handleDragStart;
     window.handleDragOver = handleDragOver;
