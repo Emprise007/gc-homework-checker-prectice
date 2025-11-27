@@ -136,7 +136,6 @@
             padding: 10px;
         }
         .char-btn {
-             /* 이전 스타일 유지 */
              flex: 1 1 auto;
             min-width: 80px;
             padding: 8px 5px;
@@ -534,4 +533,667 @@
         });
         
         // 2. 공유 일일 숙제 진척도 (무한회랑)
-        const sharedDaily = DUNGEON_DATA.daily.find
+        const sharedDaily = DUNGEON_DATA.daily.find(d => d.shared && d.id === 'corridor');
+        const sharedStatus = sharedDaily ? getAccountSharedTaskStatus(sharedDaily.id) : { completed: 0, max: 0 };
+        const sharedDailyPercent = sharedStatus.max > 0 ? Math.floor((sharedStatus.completed / sharedStatus.max) * 100) : 100;
+
+        return {
+            daily: dailyProgress, 
+            dailyShared: sharedDailyPercent 
+        };
+    }
+    
+    /**
+     * 캘린더 데이터 (진척도)를 로컬 스토리지에 저장합니다.
+     */
+    function saveDailyProgress(dateKey) {
+        const progressData = collectCurrentProgress();
+        CALENDAR_PROGRESS[dateKey] = progressData;
+        localStorage.setItem(STORAGE_KEYS.CALENDAR_PROGRESS, JSON.stringify(CALENDAR_PROGRESS));
+    }
+    
+    /**
+     * 리셋이 필요한지 확인하고, 필요하다면 적용
+     * - NOTE: 이전 코드의 무한 로딩 문제 방지를 위해, 이 함수는 리셋 여부만 확인하고
+     * 실제 데이터 로직은 `checkResetAndRender`에서 처리합니다.
+     */
+    function checkAndApplyReset(currentChars, lastResetTime, shouldSave = true) { 
+        const now = new Date();
+        const dailyResetHour = 15;
+        const weeklyResetDay = 3; 
+
+        const kstNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
+        
+        let lastResetKST = null;
+        if (lastResetTime) {
+            const lastReset = new Date(lastResetTime);
+            lastResetKST = new Date(lastReset.toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
+        }
+
+        // --- 일일 초기화 확인 ---
+        let lastDailyCheckTime = lastResetKST ? new Date(lastResetKST) : new Date(0); 
+        
+        let nextDailyReset = new Date(lastDailyCheckTime);
+        nextDailyReset.setHours(dailyResetHour, 0, 0, 0);
+
+        if (lastDailyCheckTime.getHours() >= dailyResetHour) {
+            nextDailyReset.setDate(nextDailyReset.getDate() + 1);
+        }
+
+        let shouldResetDaily = kstNow.getTime() >= nextDailyReset.getTime();
+        
+        // --- 주간 초기화 확인 ---
+        let currentCheckTime = new Date(lastDailyCheckTime);
+        currentCheckTime.setHours(dailyResetHour, 0, 0, 0);
+        
+        let nextWeeklyReset = new Date(currentCheckTime);
+
+        while (nextWeeklyReset.getDay() !== weeklyResetDay || nextWeeklyReset.getTime() <= currentCheckTime.getTime()) {
+            nextWeeklyReset.setDate(nextWeeklyReset.getDate() + 1);
+            nextWeeklyReset.setHours(dailyResetHour, 0, 0, 0);
+        }
+
+        let shouldResetWeekly = kstNow.getTime() >= nextWeeklyReset.getTime();
+
+
+        if (shouldResetDaily || shouldResetWeekly) {
+            // 리셋이 필요한 시점이라면
+            if (shouldResetDaily && shouldSave) {
+                // 리셋 발생 직전에 어제의 최종 진행 상황을 저장
+                const dateToSave = new Date(nextDailyReset);
+                dateToSave.setDate(dateToSave.getDate() - 1);
+                saveDailyProgress(formatDate(dateToSave)); 
+
+                // 실제 리셋 적용
+                currentChars.forEach(char => {
+                    char.dailyTasks = generateInitialTasks('daily');
+                });
+                setAccountSharedTaskStatus('corridor', { completed: 0, max: getTaskMaxCount('corridor') });
+            }
+
+            if (shouldResetWeekly && shouldSave) {
+                // 실제 리셋 적용
+                currentChars.forEach(char => {
+                    char.weeklyTasks = generateInitialTasks('weekly');
+                });
+            }
+
+            if (shouldSave) {
+                // 리셋 시간과 캐릭터 데이터 저장
+                localStorage.setItem(STORAGE_KEYS.RESET_TIME, kstNow.toISOString());
+                localStorage.setItem(STORAGE_KEYS.CHARACTERS, JSON.stringify(currentChars));
+            }
+
+            return true; // 리셋 발생!
+        }
+
+        return false;
+    }
+
+    /**
+     * 모든 변수를 로드하고 초기화/리셋을 확인합니다.
+     */
+    function initializeVariables() {
+        // 1. 데이터 로드
+        const savedOrder = localStorage.getItem(STORAGE_KEYS.ORDER);
+        if (savedOrder) {
+            const savedNames = JSON.parse(savedOrder);
+            const newNames = CHARACTER_NAMES.filter(name => !savedNames.includes(name));
+            CHARACTER_NAMES = [...savedNames, ...newNames];
+        }
+        
+        const savedFavorites = localStorage.getItem(STORAGE_KEYS.FAVORITES);
+        FAVORITE_NAMES = savedFavorites ? JSON.parse(savedFavorites).filter(name => CHARACTER_NAMES.includes(name)) : [];
+
+        isFilterActive = localStorage.getItem(STORAGE_KEYS.FILTER) === 'true'; 
+        currentView = localStorage.getItem(STORAGE_KEYS.CURRENT_VIEW) || 'main';
+
+        const savedData = localStorage.getItem(STORAGE_KEYS.CHARACTERS);
+        const lastReset = localStorage.getItem(STORAGE_KEYS.RESET_TIME);
+
+        const existingIds = savedData ? JSON.parse(savedData).map(c => c.id) : [];
+        let nextId = existingIds.length > 0 ? Math.max(...existingIds) + 1 : 1;
+        const charMap = new Map(savedData ? JSON.parse(savedData).map(c => [c.name, c]) : []);
+
+        characters = CHARACTER_NAMES.map(name => {
+            let char = charMap.get(name);
+            
+            if (!char) {
+                char = {
+                    id: nextId++,
+                    name: name,
+                    dailyTasks: generateInitialTasks('daily'),
+                    weeklyTasks: generateInitialTasks('weekly')
+                };
+            }
+            
+            const updatedChar = { ...char };
+            updatedChar.dailyTasks = updatedChar.dailyTasks || generateInitialTasks('daily');
+            updatedChar.weeklyTasks = updatedChar.weeklyTasks || generateInitialTasks('weekly');
+            
+            return updatedChar;
+        });
+        
+        const savedCalendar = localStorage.getItem(STORAGE_KEYS.CALENDAR_PROGRESS);
+        CALENDAR_PROGRESS = savedCalendar ? JSON.parse(savedCalendar) : {};
+        
+        // 2. 리셋 체크 (데이터는 checkAndApplyReset 내부에서만 변경됨)
+        const resetOccurred = checkAndApplyReset(characters, lastReset, false); // 리셋 여부만 확인 (저장X)
+        if (resetOccurred) {
+            // 리셋이 필요하다면, 리셋된 데이터를 다시 로드 (만약 checkAndApplyReset이 데이터를 변경했다면)
+            // NOTE: 위 checkAndApplyReset(..., false)는 데이터를 변경하지 않으므로, 이 시점에서 다시 로드할 필요는 없음.
+            //       주기적 checkResetAndRender가 이 문제를 해결할 것입니다.
+        }
+        
+        // 3. 통계 계산 및 현재 캐릭터 ID 설정
+        characters.forEach(updateCharacterStats);
+        
+        currentChrId = localStorage.getItem(STORAGE_KEYS.CURRENT_CHR) || (characters.length > 0 ? characters[0].id : null);
+    }
+
+
+    // === 4. 이벤트 핸들러 (숙제 토글 및 DND) ===
+    
+    /**
+     * 데이터 변경 후 UI 업데이트를 위한 헬퍼 함수
+     */
+    function updateCharacterDataAndUI(chrId) {
+        // 1. 통계 업데이트
+        const char = characters.find(c => c.id == chrId);
+        if (char) {
+            updateCharacterStats(char);
+        }
+        
+        // 2. UI 업데이트
+        renderCharacterSelector(); // 모든 캐릭터 버튼의 진척도를 갱신
+        renderFavorites(); // 즐겨찾기 목록의 진척도를 갱신
+        renderTaskList(); // 현재 선택된 캐릭터의 숙제 목록 갱신
+        
+        // 3. 캘린더 갱신 (캘린더 뷰 활성화 시)
+        if (currentView === 'calendar') {
+            renderCalendar();
+        }
+    }
+    
+    /**
+     * 개별 숙제 토글
+     */
+    function toggleTask(chrId, type, taskId, shared) { 
+        const item = DUNGEON_DATA[type].find(d => d.id === taskId);
+        
+        if (shared) {
+            const status = getAccountSharedTaskStatus(taskId);
+            const newCount = status.completed === 0 ? item.max : 0; 
+            setAccountSharedTaskStatus(taskId, { completed: newCount, max: item.max });
+        } else {
+            const charIndex = characters.findIndex(c => c.id === chrId);
+            if (charIndex === -1) return;
+            const char = characters[charIndex];
+            const currentCount = char[`${type}Tasks`][taskId].completed;
+            const newCount = currentCount === 0 ? item.max : 0;
+            char[`${type}Tasks`][taskId].completed = newCount;
+            localStorage.setItem(STORAGE_KEYS.CHARACTERS, JSON.stringify(characters));
+        }
+        
+        // 데이터 변경 시점에 오늘 진척도 저장
+        if (type === 'daily') {
+            saveDailyProgress(formatDate(new Date()));
+        }
+        
+        updateCharacterDataAndUI(chrId); 
+    }
+    
+    /**
+     * 캐릭터의 모든 숙제를 일괄 완료/취소
+     */
+    function toggleAllTasks(type, complete) {
+        const charIndex = characters.findIndex(c => c.id == currentChrId);
+        if (charIndex === -1) return;
+
+        const char = characters[charIndex];
+        const count = complete ? 1 : 0; 
+
+        // 1. 개별 숙제 업데이트
+        DUNGEON_DATA[type].filter(d => !d.shared).forEach(d => {
+            char[`${type}Tasks`][d.id].completed = count * d.max;
+        });
+
+        // 2. 공유 숙제 업데이트 (일일 숙제에만 적용)
+        if (type === 'daily') {
+            const sharedTask = DUNGEON_DATA.daily.find(d => d.shared && d.id === 'corridor');
+            if (sharedTask) {
+                setAccountSharedTaskStatus(sharedTask.id, { completed: count * sharedTask.max, max: sharedTask.max });
+            }
+            saveDailyProgress(formatDate(new Date()));
+        }
+
+        localStorage.setItem(STORAGE_KEYS.CHARACTERS, JSON.stringify(characters));
+        updateCharacterDataAndUI(currentChrId); 
+    }
+    
+    // --- DND/즐겨찾기 함수 ---
+    function saveCharacterOrder() {
+        localStorage.setItem(STORAGE_KEYS.ORDER, JSON.stringify(CHARACTER_NAMES));
+    }
+    function saveFavorites() {
+        localStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(FAVORITE_NAMES));
+        saveDailyProgress(formatDate(new Date()));
+        renderMainView(); 
+    }
+    function removeFavorite(charName) {
+        FAVORITE_NAMES = FAVORITE_NAMES.filter(name => name !== charName);
+        saveFavorites();
+    }
+    function handleDropToFavorite(event) {
+        event.preventDefault();
+        const droppedCharName = event.dataTransfer.getData("text/plain");
+        if (droppedCharName && !FAVORITE_NAMES.includes(droppedCharName)) {
+            FAVORITE_NAMES.push(droppedCharName);
+            saveFavorites();
+        }
+        event.currentTarget.classList.remove('drag-over');
+    }
+    function handleDragStart(event) {
+        draggedElement = event.currentTarget;
+        event.dataTransfer.setData("text/plain", draggedElement.getAttribute('data-name'));
+        event.dataTransfer.effectAllowed = "move";
+    }
+    function handleDrop(event) {
+        event.preventDefault();
+        if (!draggedElement || draggedElement === event.currentTarget) return;
+
+        const target = event.currentTarget;
+        const nameA = draggedElement.getAttribute('data-name');
+        const nameB = target.getAttribute('data-name');
+
+        const indexA = CHARACTER_NAMES.indexOf(nameA);
+        const indexB = CHARACTER_NAMES.indexOf(nameB);
+
+        if (indexA > -1 && indexB > -1) {
+            [CHARACTER_NAMES[indexA], CHARACTER_NAMES[indexB]] = [CHARACTER_NAMES[indexB], CHARACTER_NAMES[indexA]];
+            saveCharacterOrder();
+            renderMainView();
+        }
+        event.currentTarget.classList.remove('drag-over');
+    }
+    function handleDragOver(event) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        event.currentTarget.classList.add('drag-over');
+    }
+    function handleDragLeave(event) {
+        event.currentTarget.classList.remove('drag-over');
+    }
+
+    // === 5. 테마 및 필터 로직 ===
+    
+    const getTheme = () => localStorage.getItem('theme') || 'dark';
+
+    function setTheme(theme) { 
+        document.body.className = theme === 'dark' ? 'dark-mode' : 'light-mode';
+        localStorage.setItem('theme', theme);
+        updateThemeToggleText(theme);
+    }
+    
+    function toggleTheme() { 
+        const currentTheme = getTheme();
+        setTheme(currentTheme === 'dark' ? 'light' : 'dark');
+    }
+
+    function updateThemeToggleText(theme) {
+        const button = document.getElementById('theme-toggle');
+        button.innerText = theme === 'dark' ? '☀️ 낮 모드' : '🌙 밤 모드';
+    }
+
+    function toggleFilter() {
+        isFilterActive = !isFilterActive;
+        localStorage.setItem(STORAGE_KEYS.FILTER, isFilterActive);
+        renderCharacterSelector(); 
+    }
+    
+    function updateFilterButton() {
+        const button = document.getElementById('filter-toggle-btn');
+        if (isFilterActive) {
+            button.classList.add('active');
+            button.innerText = '✅ 숙제 남은 캐릭터만 보기 (활성)';
+        } else {
+            button.classList.remove('active');
+            button.innerText = '🔍 숙제 남은 캐릭터만 보기';
+        }
+    }
+    
+    // === 6. 뷰 전환 및 캘린더 로직 ===
+    
+    /**
+     * 메인 화면과 캘린더 화면을 전환합니다.
+     */
+    function switchView(viewName) {
+        currentView = viewName;
+        localStorage.setItem(STORAGE_KEYS.CURRENT_VIEW, viewName);
+        
+        document.getElementById('main-view').style.display = viewName === 'main' ? 'block' : 'none';
+        document.getElementById('calendar-view').style.display = viewName === 'calendar' ? 'block' : 'none';
+        
+        const calendarBtn = document.getElementById('calendar-toggle-btn');
+        calendarBtn.style.display = viewName === 'main' ? 'inline-block' : 'none';
+        
+        if (viewName === 'calendar') {
+            renderCalendar();
+        }
+    }
+    
+    function changeMonth(delta) {
+        currentCalendarDate.setMonth(currentCalendarDate.getMonth() + delta);
+        renderCalendar();
+    }
+
+    function renderCalendar() {
+        const date = currentCalendarDate;
+        const year = date.getFullYear();
+        const month = date.getMonth(); 
+
+        document.getElementById('calendar-title').innerText = `${year}년 ${month + 1}월`;
+
+        const grid = document.getElementById('calendar-grid');
+        while (grid.children.length > 7) {
+            grid.removeChild(grid.lastChild);
+        }
+
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        const startDayOfWeek = firstDay.getDay(); 
+
+        for (let i = 0; i < startDayOfWeek; i++) {
+            const emptyDay = document.createElement('div');
+            emptyDay.className = 'calendar-day empty';
+            grid.appendChild(emptyDay);
+        }
+
+        const todayKey = formatDate(new Date());
+        for (let day = 1; day <= lastDay.getDate(); day++) {
+            const currentDate = new Date(year, month, day);
+            const dateKey = formatDate(currentDate);
+
+            const dayDiv = document.createElement('div');
+            dayDiv.className = 'calendar-day';
+            if (dateKey === todayKey) {
+                dayDiv.classList.add('today');
+            }
+            
+            const dayNumber = document.createElement('div');
+            dayNumber.className = 'day-number';
+            dayNumber.innerText = day;
+            dayDiv.appendChild(dayNumber);
+            
+            const progressContainer = document.createElement('div');
+            progressContainer.className = 'progress-indicator-container';
+            
+            // 캘린더 성능 최적화: 현재 날짜라도 저장된 CALENDAR_PROGRESS 데이터를 사용합니다.
+            const progressData = CALENDAR_PROGRESS[dateKey]; 
+
+            if (progressData && FAVORITE_NAMES.length > 0) {
+                const dailyContainer = document.createElement('div');
+                dailyContainer.className = 'daily-progress';
+                
+                // 1. 즐겨찾기 캐릭터 진척도
+                FAVORITE_NAMES.forEach(name => {
+                    if (progressData.daily[name] === undefined) return; 
+
+                    const percent = progressData.daily[name];
+                    
+                    let dotClass = '';
+                    if (percent === 100) dotClass = 'dot-complete';
+                    else if (percent > 0) dotClass = 'dot-partial';
+                    else dotClass = 'dot-incomplete';
+                    
+                    const dot = document.createElement('span');
+                    dot.className = `daily-progress-dot ${dotClass}`;
+                    dot.title = `${name}: ${percent}%`;
+                    dailyContainer.appendChild(dot);
+                });
+
+                // 2. 공유 숙제 진척도 (무한회랑)
+                const sharedPercent = progressData.dailyShared !== undefined ? progressData.dailyShared : 100;
+                let sharedDotClass = '';
+                if (sharedPercent === 100) sharedDotClass = 'dot-complete';
+                else if (sharedPercent > 0) sharedDotClass = 'dot-partial';
+                else sharedDotClass = 'dot-incomplete';
+                
+                const sharedDot = document.createElement('span');
+                sharedDot.className = `daily-progress-dot ${sharedDotClass}`;
+                sharedDot.title = `무한회랑(공유): ${sharedPercent}%`;
+                dailyContainer.appendChild(sharedDot);
+                
+                progressContainer.appendChild(dailyContainer);
+            }
+
+            dayDiv.appendChild(progressContainer);
+            grid.appendChild(dayDiv);
+        }
+    }
+    
+    // === 7. 렌더링 함수 (UI 업데이트) ===
+
+    function selectCharacter(id) { 
+        currentChrId = id; 
+        localStorage.setItem(STORAGE_KEYS.CURRENT_CHR, id); 
+        renderTaskList(); 
+    }
+
+    function renderCharacterSelector() {
+        const selector = document.getElementById('character-selector');
+        selector.innerHTML = '';
+
+        CHARACTER_NAMES.forEach(name => {
+            const char = characters.find(c => c.name === name);
+            if (!char) return; 
+
+            if (isFilterActive && char.dailyStats.percentage === 100 && char.weeklyStats.percentage === 100) {
+                return; 
+            }
+
+            const btn = document.createElement('button');
+            btn.className = `char-btn ${char.id == currentChrId ? 'active' : ''}`;
+            btn.setAttribute('data-id', char.id);
+            btn.setAttribute('data-name', char.name);
+            btn.setAttribute('draggable', true);
+            btn.onclick = () => selectCharacter(char.id);
+            btn.ondragstart = handleDragStart;
+            btn.ondrop = handleDrop;
+            btn.ondragover = handleDragOver;
+            btn.ondragleave = handleDragLeave;
+
+            const dailyBar = `<div class="progress-bar-container"><div class="progress-bar" style="width: ${char.dailyStats.percentage}%; background-color: ${CHAR_COLORS[name]};"></div></div>`;
+            const weeklyBar = `<div class="progress-bar-container"><div class="progress-bar" style="width: ${char.weeklyStats.percentage}%; background-color: ${CHAR_COLORS[name]};"></div></div>`;
+
+            btn.innerHTML = `${name}${dailyBar}${weeklyBar}`;
+            selector.appendChild(btn);
+        });
+    }
+
+    function renderFavorites() {
+        const favoriteList = document.getElementById('favorite-list');
+        favoriteList.innerHTML = '';
+
+        if (FAVORITE_NAMES.length === 0) {
+            favoriteList.innerHTML = '<span class="favorite-list-placeholder">캐릭터를 여기에 드래그하세요.</span>';
+            return;
+        }
+
+        FAVORITE_NAMES.forEach(name => {
+            const char = characters.find(c => c.name === name);
+            if (!char) return; 
+
+            const item = document.createElement('div');
+            item.className = 'favorite-item';
+            item.setAttribute('data-name', name);
+            item.setAttribute('draggable', true);
+            item.ondragstart = handleDragStart;
+            item.ondrop = (e) => { e.preventDefault(); removeFavorite(name); }; 
+            item.ondragover = handleDragOver;
+            item.ondragleave = handleDragLeave;
+
+            const dailyBar = `<div class="progress-bar-container"><div class="progress-bar" style="width: ${char.dailyStats.percentage}%; background-color: ${CHAR_COLORS[name]};"></div></div>`;
+            const weeklyBar = `<div class="progress-bar-container"><div class="progress-bar" style="width: ${char.weeklyStats.percentage}%; background-color: ${CHAR_COLORS[name]};"></div></div>`;
+
+            item.innerHTML = `<span>${name}</span>${dailyBar}${weeklyBar}`;
+            favoriteList.appendChild(item);
+        });
+    }
+    
+    function renderBulkButtons(type, stats) {
+        const container = document.getElementById(`${type}-bulk-toggle`);
+        container.innerHTML = '';
+        
+        const completeBtn = document.createElement('button');
+        completeBtn.className = 'bulk-toggle-btn complete';
+        completeBtn.innerText = `${type === 'daily' ? '일일' : '주간'} 전체 완료`;
+        completeBtn.onclick = () => toggleAllTasks(type, true);
+        
+        const incompleteBtn = document.createElement('button');
+        incompleteBtn.className = 'bulk-toggle-btn incomplete';
+        incompleteBtn.innerText = `${type === 'daily' ? '일일' : '주간'} 전체 취소`;
+        incompleteBtn.onclick = () => toggleAllTasks(type, false);
+
+        if (stats.percentage === 100) {
+            completeBtn.disabled = true;
+            completeBtn.style.opacity = 0.5;
+        }
+
+        container.appendChild(completeBtn);
+        container.appendChild(incompleteBtn);
+    }
+
+
+    function renderTaskList() {
+        const char = characters.find(c => c.id == currentChrId);
+        if (!char) {
+             document.getElementById('current-char-name').innerText = "캐릭터를 선택해주세요.";
+             document.getElementById('daily-list').innerHTML = '';
+             document.getElementById('weekly-list').innerHTML = '';
+             document.getElementById('daily-bulk-toggle').innerHTML = '';
+             document.getElementById('weekly-bulk-toggle').innerHTML = '';
+             return;
+        }
+        
+        document.getElementById('current-char-name').innerText = `[${char.name}] 선택됨`;
+
+        // --- 일일 숙제 렌더링 ---
+        const dailyList = document.getElementById('daily-list');
+        dailyList.innerHTML = '';
+        
+        DUNGEON_DATA.daily.filter(d => !d.shared).forEach(d => {
+            const status = char.dailyTasks[d.id] || { completed: 0, max: d.max };
+            const isDone = status.completed === status.max;
+            dailyList.innerHTML += `
+                <div class="task-item ${isDone ? 'done' : ''}" onclick="toggleTask(${char.id}, 'daily', '${d.id}', false)">
+                    <span>${d.name} (${status.completed}/${status.max})</span>
+                    <span>${isDone ? '✅' : '⬜'}</span>
+                </div>
+            `;
+        });
+        
+        DUNGEON_DATA.daily.filter(d => d.shared).forEach(d => {
+            const status = getAccountSharedTaskStatus(d.id);
+            const isDone = status.completed === status.max;
+            dailyList.innerHTML += `
+                <div class="task-item ${isDone ? 'done' : ''}" onclick="toggleTask(${char.id}, 'daily', '${d.id}', true)">
+                    <span>[공유] ${d.name} (${status.completed}/${status.max})</span>
+                    <span>${isDone ? '✅' : '⬜'}</span>
+                </div>
+            `;
+        });
+
+        document.getElementById('daily-stats-display').innerText = `일일: ${char.dailyStats.completedCount}/${char.dailyStats.totalCount} (${char.dailyStats.percentage}%)`;
+        renderBulkButtons('daily', char.dailyStats);
+
+
+        // --- 주간 숙제 렌더링 ---
+        const weeklyList = document.getElementById('weekly-list');
+        weeklyList.innerHTML = '';
+        
+        DUNGEON_DATA.weekly.filter(d => !d.shared).forEach(d => {
+            const status = char.weeklyTasks[d.id] || { completed: 0, max: d.max };
+            const isDone = status.completed === status.max;
+            weeklyList.innerHTML += `
+                <div class="task-item ${isDone ? 'done' : ''}" onclick="toggleTask(${char.id}, 'weekly', '${d.id}', false)">
+                    <span>${d.name} (${status.completed}/${status.max})</span>
+                    <span>${isDone ? '✅' : '⬜'}</span>
+                </div>
+            `;
+        });
+
+        document.getElementById('weekly-stats-display').innerText = `주간: ${char.weeklyStats.completedCount}/${char.weeklyStats.totalCount} (${char.weeklyStats.percentage}%)`;
+        renderBulkButtons('weekly', char.weeklyStats);
+    }
+    
+    /**
+     * 메인 뷰의 모든 UI 요소를 렌더링/갱신합니다. (초기 로딩, 필터/정렬 변경 시 사용)
+     */
+    function renderMainView() {
+        renderCharacterSelector(); 
+        renderFavorites();
+        renderTaskList(); 
+        updateFilterButton(); 
+    }
+
+
+    function render() {
+        setTheme(getTheme()); 
+        
+        // 뷰 전환
+        switchView(currentView);
+        
+        // 메인 뷰 요소들만 렌더링
+        if (currentView === 'main') {
+            renderMainView();
+        }
+    }
+
+    // === 8. 시작 및 주기적 체크 ===
+    
+    /** 주기적으로 리셋을 체크하고, 리셋이 발생하면 전체 UI를 렌더링 */
+    function checkResetAndRender() {
+        const lastReset = localStorage.getItem(STORAGE_KEYS.RESET_TIME);
+        
+        // 로컬 스토리지에서 데이터를 다시 로드하여 리셋 함수에 전달 (안전성 확보)
+        let savedData = localStorage.getItem(STORAGE_KEYS.CHARACTERS);
+        let tempCharacters = savedData ? JSON.parse(savedData) : [];
+        
+        // checkAndApplyReset(..., true)를 호출하여, 리셋이 필요하면 실제 데이터 변경 및 저장을 수행
+        const resetOccurred = checkAndApplyReset(tempCharacters, lastReset, true);
+        
+        if (resetOccurred) {
+            // 리셋이 발생했으면, 데이터와 변수를 완전히 다시 로드하고 렌더링
+            initializeVariables(); 
+            render();
+        } else if (currentView === 'calendar') {
+            // 리셋이 없었고 캘린더 뷰 활성화 상태라면 캘린더만 갱신 (단순 시각적 갱신 목적)
+            renderCalendar(); 
+        }
+    }
+
+    // --- 초기 부트스트랩 ---
+    initializeVariables(); // 데이터 초기 로드 및 통계 계산
+    render(); // 초기 렌더링
+    
+    // 1분마다 리셋을 체크합니다.
+    setInterval(checkResetAndRender, 60000); 
+
+    // 전역 스코프에 함수 노출 (HTML onclick 사용을 위함)
+    window.toggleTheme = toggleTheme;
+    window.switchView = switchView;
+    window.changeMonth = changeMonth;
+    window.toggleTask = toggleTask;
+    window.toggleAllTasks = toggleAllTasks;
+    window.toggleFilter = toggleFilter;
+    window.handleDragStart = handleDragStart;
+    window.handleDragOver = handleDragOver;
+    window.handleDragLeave = handleDragLeave;
+    window.handleDrop = handleDrop;
+    window.handleDropToFavorite = handleDropToFavorite;
+    window.selectCharacter = selectCharacter; 
+</script>
+
+</body>
+</html>
