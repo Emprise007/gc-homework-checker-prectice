@@ -1,4 +1,388 @@
-// === 1. 기본 데이터 및 상수 설정 ===
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GCC 체크리스트</title>
+    <style>
+        /* === 1. 다크/라이트 모드 변수 설정 === */
+        :root {
+            /* Light Mode Default */
+            --bg-main: #f0f0f0;
+            --bg-container: #ffffff;
+            --bg-item: #e8e8e8;
+            --text-color: #333333;
+            --title-color: #333333; 
+            --accent-color: #cc0000; 
+            --shadow-color: rgba(0, 0, 0, 0.15);
+            --border-color: #ccc;
+            --sidebar-bg: #eeeeee; 
+            --progress-bar-bg: #d9d9d9;
+            --drag-bg: #ffcccc;
+            --favorite-bg: #f8f8ff; 
+            --favorite-border: #d3d3d3;
+            
+            /* Calendar Colors */
+            --progress-complete: #4CAF50; /* Green */
+            --progress-partial: #FFC300; /* Yellow/Gold */
+            --progress-incomplete: #FF5733; /* Red/Orange */
+            --calendar-bg: var(--bg-container); /* 메인 컨테이너와 동일 */
+            --calendar-border: #ddd;
+        }
+
+        /* Dark Mode */
+        .dark-mode {
+            --bg-main: #1c1c1c;
+            --bg-container: #252525;
+            --bg-item: #333333;
+            --text-color: #f0f0f0;
+            --title-color: #ffffff; 
+            --accent-color: #ff3333; 
+            --shadow-color: rgba(255, 255, 255, 0.1);
+            --border-color: #444;
+            --sidebar-bg: #222222;
+            --progress-bar-bg: #444444;
+            --drag-bg: #550000;
+            --favorite-bg: #111111; 
+            --favorite-border: #333333;
+
+            /* Calendar Colors (Dark) */
+            --progress-complete: #66BB6A; 
+            --progress-partial: #FFD700; 
+            --progress-incomplete: #FF6347; 
+            --calendar-bg: var(--bg-container);
+            --calendar-border: #555;
+        }
+
+        /* === 2. 기본 스타일 === */
+        body { 
+            background-color: var(--bg-main); 
+            color: var(--text-color); 
+            font-family: 'Malgun Gothic', sans-serif; 
+            display: flex; 
+            justify-content: center; 
+            padding: 20px; 
+            margin: 0; 
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .container { 
+            width: 100%; 
+            max-width: 1100px; 
+            background-color: var(--bg-container); 
+            padding: 25px; 
+            border-radius: 15px; 
+            box-shadow: 0 10px 30px var(--shadow-color); 
+            position: relative;
+        }
+        
+        /* 버튼 배치 */
+        #top-buttons {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            display: flex;
+            gap: 10px;
+        }
+        #theme-toggle {
+            background-color: var(--bg-item);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9em;
+        }
+        #theme-toggle:hover {
+            opacity: 0.8;
+        }
+
+        h1 { text-align: center; color: var(--title-color); margin-bottom: 5px; font-size: 2.5em; transition: color 0.3s; }
+        
+        /* 메인 레이아웃 */
+        #main-content-area {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        #favorite-sidebar {
+            width: 250px;
+            min-width: 200px;
+            background-color: var(--favorite-bg);
+            border: 1px solid var(--favorite-border);
+            padding: 15px;
+            border-radius: 10px;
+            align-self: flex-start;
+        }
+        #favorite-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        #task-view-container {
+            flex: 1;
+            display: flex;
+            gap: 20px;
+        }
+        .task-column-wrapper {
+            flex: 1;
+        }
+        
+        /* 캐릭터 버튼 */
+        #character-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            padding: 10px 0;
+            margin-bottom: 10px;
+            border: 1px dashed var(--border-color);
+            border-radius: 8px;
+            padding: 10px;
+        }
+        .char-btn {
+            flex: 1 1 auto;
+            min-width: 80px;
+            padding: 8px 5px;
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-item);
+            color: var(--text-color);
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            font-size: 0.85em;
+            position: relative;
+            overflow: hidden;
+        }
+        .char-btn.active {
+            border: 2px solid var(--accent-color);
+            box-shadow: 0 0 5px rgba(204, 0, 0, 0.5);
+            padding: 7px 4px;
+        }
+        .progress-bar-container {
+            height: 3px;
+            background-color: var(--progress-bar-bg);
+            margin-top: 3px;
+            border-radius: 1.5px;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            background-color: var(--accent-color); 
+            transition: width 0.3s;
+        }
+        
+        /* 숙제 항목 */
+        .task-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin-bottom: 8px;
+            background-color: var(--bg-item);
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .task-item.done {
+            background-color: var(--progress-complete);
+            color: white;
+            text-decoration: line-through;
+        }
+        
+        /* === 3. 캘린더 섹션 스타일 === */
+        #calendar-section {
+            margin-top: 50px;
+            padding-top: 30px;
+            border-top: 2px dashed var(--border-color);
+        }
+        .calendar-content {
+            background-color: var(--calendar-bg);
+            padding: 10px;
+            border-radius: 10px;
+            width: 100%;
+            color: var(--text-color);
+        }
+
+        #calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        #calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+            border: 1px solid var(--calendar-border);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .day-header {
+            background-color: var(--bg-item);
+            text-align: center;
+            padding: 10px 0;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        .day-header:nth-child(1) { color: var(--accent-color); } 
+        .day-header:nth-child(7) { color: #0077ff; } 
+
+
+        .calendar-day {
+            border: 1px solid var(--calendar-border);
+            min-height: 100px;
+            padding: 5px;
+            position: relative;
+            background-color: var(--bg-container);
+            transition: background-color 0.1s;
+        }
+        .calendar-day.empty {
+            background-color: var(--bg-main);
+            border-color: transparent;
+        }
+        .day-number {
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        .calendar-day.today {
+            background-color: var(--bg-item);
+            border: 2px solid var(--accent-color);
+        }
+
+        /* 진척도 표시 스타일 */
+        .progress-indicator-container {
+            display: flex;
+            flex-direction: column; 
+            align-items: flex-start;
+            margin-top: 5px;
+        }
+        .daily-progress {
+            display: flex;
+            gap: 3px;
+            flex-wrap: wrap; 
+        }
+
+        /* 일일 진척도 원 */
+        .daily-progress-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: block;
+            border: 1px solid var(--calendar-border);
+        }
+
+        .dot-complete { background-color: var(--progress-complete); } 
+        .dot-partial { background-color: var(--progress-partial); } 
+        .dot-incomplete { background-color: var(--progress-incomplete); } 
+
+        /* 주간 진척도 */
+        .weekly-progress {
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-top: 5px;
+            padding: 2px 4px;
+            border-radius: 3px;
+            text-align: center;
+        }
+        .weekly-complete { background-color: var(--progress-complete); color: white; }
+        .weekly-partial { background-color: var(--progress-partial); color: var(--text-color); }
+        .weekly-incomplete { background-color: var(--progress-incomplete); color: white; }
+
+        /* 모바일 반응형 */
+        @media (max-width: 950px) {
+            #main-content-area { flex-direction: column; }
+            #favorite-sidebar { width: 100%; min-width: auto; }
+            #task-view-container { flex-direction: column; }
+            .calendar-content { width: 100%; }
+            .calendar-day { min-height: 50px; padding: 3px; }
+            .day-number { font-size: 0.9em; }
+        }
+
+    </style>
+</head>
+<body class="dark-mode"> 
+
+<div class="container">
+    <div id="top-buttons">
+        <button id="theme-toggle" onclick="toggleTheme()"></button>
+    </div>
+    
+    <h1>GCC 체크리스트</h1>
+    
+    <div id="filter-stats-container">
+        <button id="filter-toggle-btn" onclick="toggleFilter()">🔍 숙제 남은 캐릭터만 보기</button>
+    </div>
+
+    <div id="character-selector" ondragover="handleDragOver(event)" ondrop="handleDrop(event)" ondragleave="handleDragLeave(event)"></div>
+    <span class="char-select-info">캐릭터를 즐겨찾기 사이드바로 드래그하거나, 아래에서 순서를 변경할 수 있습니다.</span>
+    
+    <div id="current-char-group">
+        <h2 id="current-char-name"></h2>
+    </div>
+    
+    <div id="main-content-area">
+        <div id="favorite-sidebar" 
+             ondragover="handleDragOver(event)" 
+             ondrop="handleDropToFavorite(event)" 
+             ondragleave="handleDragLeave(event)">
+            <h3>⭐️ 즐겨찾기</h3>
+            <div id="favorite-list">
+                <span class="favorite-list-placeholder">캐릭터를 여기에 드래그하세요.</span>
+            </div>
+        </div>
+
+        <div id="task-view-container">
+            
+            <div class="task-column-wrapper">
+                <h3>📅 일일 숙제</h3>
+                <div id="daily-stats-display"></div> 
+                <div id="daily-list"></div>
+            </div>
+
+            <div class="task-column-wrapper">
+                <h3>⚔️ 주간 숙제</h3>
+                <div id="weekly-stats-display"></div>
+                <div id="weekly-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <section id="calendar-section">
+        <h2 style="text-align: center; margin-bottom: 30px;">🗓️ 진척도 달력</h2>
+        
+        <div class="calendar-content">
+            <div id="calendar-header">
+                <button class="nav-btn" onclick="changeMonth(-1)">&#x25C0;</button>
+                <h2 id="calendar-title"></h2>
+                <button class="nav-btn" onclick="changeMonth(1)">&#x25B6;</button>
+            </div>
+            <div id="calendar-grid">
+                <div class="day-header">일</div>
+                <div class="day-header">월</div>
+                <div class="day-header">화</div>
+                <div class="day-header">수</div>
+                <div class="day-header">목</div>
+                <div class="day-header">금</div>
+                <div class="day-header">토</div>
+            </div>
+            <p style="margin-top: 20px; font-size: 0.9em; opacity: 0.8;">
+                * 진척도 원 (즐겨찾기 캐릭터 기준): 🟢 (100%), 🟡 (부분), 🔴 (0%) | 주간 평균 완료율 옆에 표기
+            </p>
+        </div>
+    </section>
+
+    <div class="footer">
+        <div>데이터는 브라우저에 자동 저장됩니다. (기기 간 연동 X)</div>
+        <div class="footer-credit">Made by 깡</div>
+    </div>
+</div>
+
+<script>
+    // === 1. 기본 데이터 및 상수 설정 ===
     const CHAR_COLORS = {
         '엘리시스': '#ff0000', '리르': '#9acd32', '아르메': '#a020f0', '라스': '#87ceeb',
         '라이언': '#008000', '로난': '#4169e1', '에이미': '#ff69b4', '진': '#ff4500', 
@@ -139,14 +523,12 @@
     
     /**
      * 캘린더 데이터 (진척도)를 로컬 스토리지에 저장합니다.
-     * 이 함수는 무한 루프를 막기 위해 데이터가 실제로 변경되는 시점에만 호출되어야 합니다.
      */
     function saveDailyProgress(dateKey) {
         const progressData = collectCurrentProgress();
         
         CALENDAR_PROGRESS[dateKey] = progressData;
         localStorage.setItem(STORAGE_KEYS.CALENDAR_PROGRESS, JSON.stringify(CALENDAR_PROGRESS));
-        // console.log(`Data saved for ${dateKey}.`); // 디버깅용
     }
     
     /**
@@ -231,15 +613,12 @@
             }
             return true;
         }
-        
-        // 리셋이 발생하지 않았더라도, 현재 날짜의 진행 상황은 다음 checkResetAndRender()에서 저장됨
-        // 이 함수 자체는 초기화(initializeVariables) 시 shouldSave=false로 호출되므로 무한 루프 위험 없음
 
         return false;
     }
 
     function initializeVariables() {
-        // 1. 데이터 로드 (순서, 즐겨찾기, 필터, 캐릭터, 캘린더)
+        // 1. 데이터 로드
         const savedOrder = localStorage.getItem(STORAGE_KEYS.ORDER);
         if (savedOrder) {
             const savedNames = JSON.parse(savedOrder);
@@ -329,19 +708,19 @@
             char.hasIncompleteWeekly = char.weeklyStats.totalCount > char.weeklyStats.completedCount;
         }
 
-        // ⭐ 무한 루프 방지 핵심: 데이터 변경 시점에 명시적으로 한 번 저장
+        // 데이터 변경 시점에 명시적으로 한 번 저장
         const todayKey = formatDate(new Date());
         saveDailyProgress(todayKey); 
 
         render();
     }
     
+    // --- DND/즐겨찾기 함수 (기존 로직 유지) ---
     function saveCharacterOrder() {
         localStorage.setItem(STORAGE_KEYS.ORDER, JSON.stringify(CHARACTER_NAMES));
     }
     function saveFavorites() {
         localStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(FAVORITE_NAMES));
-        // 즐겨찾기가 바뀌면 캘린더 표시 내용이 바뀌므로 저장 후 렌더링
         const todayKey = formatDate(new Date());
         saveDailyProgress(todayKey); 
         render();
@@ -359,7 +738,6 @@
         }
         event.currentTarget.classList.remove('drag-over');
     }
-    // DND 및 기타 보조 함수 (간결화를 위해 핵심 로직만 제공합니다.)
     function handleDragStart(event) {
         draggedElement = event.currentTarget;
         event.dataTransfer.setData("text/plain", draggedElement.getAttribute('data-name'));
@@ -430,22 +808,7 @@
         }
     }
 
-    // === 6. 캘린더 모달 로직 ===
-    
-    function openCalendar() {
-        document.getElementById('calendar-modal').style.display = 'flex';
-        renderCalendar();
-    }
-
-    function closeCalendar() {
-        document.getElementById('calendar-modal').style.display = 'none';
-    }
-    
-    function closeModalOutside(event) {
-        if (event.target === document.getElementById('calendar-modal')) {
-            closeCalendar();
-        }
-    }
+    // === 6. 캘린더 로직 (스크롤 섹션) ===
     
     function changeMonth(delta) {
         currentCalendarDate.setMonth(currentCalendarDate.getMonth() + delta);
@@ -618,7 +981,7 @@
             item.setAttribute('data-name', name);
             item.setAttribute('draggable', true);
             item.ondragstart = handleDragStart;
-            item.ondrop = (e) => { e.preventDefault(); removeFavorite(name); }; // 즐겨찾기 밖으로 드래그 시 제거
+            item.ondrop = (e) => { e.preventDefault(); removeFavorite(name); }; 
             item.ondragover = handleDragOver;
             item.ondragleave = handleDragLeave;
 
@@ -702,10 +1065,8 @@
         renderTaskList(); 
         updateFilterButton(); 
         
-        // 캘린더 모달이 열려 있다면 캘린더도 갱신 (실시간 진척도 반영)
-        if (document.getElementById('calendar-modal').style.display === 'flex') {
-            renderCalendar();
-        }
+        // 달력 섹션이 항상 렌더링되도록 호출
+        renderCalendar();
     }
 
     // === 8. 시작 및 주기적 체크 ===
@@ -716,27 +1077,18 @@
         let savedData = localStorage.getItem(STORAGE_KEYS.CHARACTERS);
         let tempCharacters = savedData ? JSON.parse(savedData) : [];
         
-        // checkAndApplyReset 내부에서 리셋 시 saveDailyProgress(어제 날짜) 호출 됨
         const resetOccurred = checkAndApplyReset(tempCharacters, lastReset, true);
         
         if (resetOccurred || tempCharacters.length === 0) {
-            // 리셋이 발생했거나 데이터가 초기화된 경우에만 전체 렌더링
             render();
         } else {
-             // 리셋이 발생하지 않은 경우: 
-             // 캘린더 모달이 열려 있을 때만 캘린더를 갱신하여 최신 데이터를 반영
-             if (document.getElementById('calendar-modal').style.display === 'flex') {
-                renderCalendar();
-            }
-            // 이 외의 경우에는 아무것도 하지 않음 (무한 루프 방지)
+             // 리셋이 발생하지 않았더라도 캘린더를 갱신하여 최신 데이터를 반영
+             renderCalendar();
         }
     }
 
     // 전역 스코프에 함수 노출 (HTML onclick 사용을 위함)
     window.toggleTheme = toggleTheme;
-    window.openCalendar = openCalendar;
-    window.closeCalendar = closeCalendar;
-    window.closeModalOutside = closeModalOutside;
     window.changeMonth = changeMonth;
     window.toggleTask = toggleTask;
     window.toggleFilter = toggleFilter;
@@ -745,9 +1097,14 @@
     window.handleDragLeave = handleDragLeave;
     window.handleDrop = handleDrop;
     window.handleDropToFavorite = handleDropToFavorite;
-    window.selectCharacter = selectCharacter; // 캐릭터 버튼 클릭 핸들러
+    window.selectCharacter = selectCharacter; 
 
     render(); // 최초 렌더링
     
     // 1분마다 리셋을 체크합니다.
-    setInterval(checkResetAndRender, 60000);
+    setInterval(checkResetAndRender, 60000); 
+
+</script>
+
+</body>
+</html>
